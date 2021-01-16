@@ -13,6 +13,8 @@ import util.misc as utils
 from datasets.coco_eval import CocoEvaluator
 from datasets.panoptic_eval import PanopticEvaluator
 
+import matplotlib.pyplot as plt
+
 
 def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
                     data_loader: Iterable, optimizer: torch.optim.Optimizer,
@@ -26,26 +28,34 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
     print_freq = 10
 
     for samples, targets in metric_logger.log_every(data_loader, print_freq, header):
-        samples = samples.to(device)
-        # All values in the target dict are tensors so we move them to the selected device for computation (cuda/cpu)
-        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
+        # coco_sample = torch.load("tmp/coco_sample_from_dataloader.pt")
+        # samples, targets = coco_sample
         """
         Each sample returned from the data loader is a tuple of size 2
             SAMPLES: is a NestedTensor (from util.misc)
             TARGETS: is a tuple of length BATCH_SIZE
                 Each label is a dict with keys:
-                    boxes, labels, image_id, area, iscrowd, orig_size, size
+                    boxes --> [num_gates, 8]
+                    labels --> [num_gates]
+                    image_id --> [1]
+                    area --> [num_gates]
+                    iscrowd --> [num_gates]
+                    orig_size --> [2]
+                    size --> [2]
         """
+        samples = samples.to(device)
+        # All values in the target dict are tensors so we move them to the selected device for computation (cuda/cpu)
+        targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
+        """
+        OUTPUTS is a DICT with keys:
+            pred_logits --> Tensor of shape [batch_size, 100, 21]
+            pred_boxes --> Tensor of shape [batch_size, 100, 21]
+            aux_outputs --> List of length 5 (repetitions of decoder - 1)
+                Each aux_output[i] is again a DICT with keys ['pred_logits', 'pred_boxes']
+        """
         outputs = model(samples)
-
-        print("Samples device:", samples.device)
-        print("COMPUTED OUTPUT:", type(outputs))
-        print("Output dict keys:")
-        for k in outputs:
-            print(k)
-        exit(-1)
 
         loss_dict = criterion(outputs, targets)
         weight_dict = criterion.weight_dict
@@ -75,6 +85,10 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
         metric_logger.update(loss=loss_value, **loss_dict_reduced_scaled, **loss_dict_reduced_unscaled)
         metric_logger.update(class_error=loss_dict_reduced['class_error'])
         metric_logger.update(lr=optimizer.param_groups[0]["lr"])
+
+        # print("TRAINED ONE BATCH ################################à")
+        # break
+
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
     print("Averaged stats:", metric_logger)

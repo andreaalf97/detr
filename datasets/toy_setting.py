@@ -56,13 +56,13 @@ class Gate:
         tr = (float(self.top_right[0])/self.image_width, float(self.top_right[1])/self.image_height)
 
         return [
-            bl,
-            tl,
-            tr,
-            br
+            bl[0], bl[1],
+            tl[0], tl[1],
+            tr[0], tr[1],
+            br[0], br[1]
         ]
 
-    def get_normalized_area(self) -> float:
+    def get_area(self) -> float:
         bottom_width = abs(self.bottom_right[0] - self.bottom_left[0])
         top_width = abs(self.top_right[0] - self.top_left[0])
         left_height = abs(self.bottom_left[1] - self.top_left[1])
@@ -71,7 +71,7 @@ class Gate:
         h = max(right_height, left_height)
         w = max(bottom_width, top_width)
 
-        return (h*w)/(self.image_height * self.image_width)
+        return h*w
 
     def rand_shift(self, image_size_perc=0.40):
 
@@ -176,7 +176,7 @@ def get_ts_image(height, width, num_gates=3, padding=5, rand_gate_number=False, 
             gate.rand_shift(image_size_perc=0.20)
 
         labels.append(gate.get_labels())
-        areas.append(gate.get_normalized_area())
+        areas.append(gate.get_area())
         img = print_gate(img, gate, mark_top_corners=False)
 
     return img, labels, areas
@@ -309,7 +309,7 @@ class TSDataset(torch.utils.data.Dataset):
         self.transform = transform
 
     def __len__(self):
-        return 1000000
+        return 6
 
     def __getitem__(self, index):
         self.generated_images += 1
@@ -326,13 +326,13 @@ class TSDataset(torch.utils.data.Dataset):
 
         # boxes, labels, image_id, area, iscrowd, orig_size, size
         target = {
-            'boxes': torch.tensor(labels, dtype=torch.float64),
-            'labels': torch.tensor([0 for _ in range(len(labels))], dtype=torch.int32),
-            'image_id': torch.tensor([len(labels)], dtype=torch.int32),
-            'area': torch.tensor(areas, dtype=torch.float64),
-            'iscrowd': torch.tensor([False], dtype=torch.bool),
-            'orig_size': torch.tensor([self.img_height, self.img_width], dtype=torch.int32),
-            'size': torch.tensor([self.img_height, self.img_width], dtype=torch.int32)
+            'boxes': torch.tensor(labels, dtype=torch.float32),
+            'labels': torch.tensor([0 for _ in range(len(labels))], dtype=torch.int64),
+            'image_id': torch.tensor([len(labels)], dtype=torch.int64),
+            'area': torch.tensor(areas, dtype=torch.float32),
+            'iscrowd': torch.tensor([0 for _ in range(len(labels))], dtype=torch.int64),
+            'orig_size': torch.tensor([self.img_height, self.img_width], dtype=torch.int64),
+            'size': torch.tensor([self.img_height, self.img_width], dtype=torch.int64)
         }
 
         if self.transform:
