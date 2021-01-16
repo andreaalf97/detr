@@ -79,7 +79,7 @@ def get_args_parser():
                         help="Relative classification weight of the no-object class")
 
     # dataset parameters
-    parser.add_argument('--dataset_file', default='coco')  # 'toy_setting' for generated images
+    parser.add_argument('--dataset_file', default='toy_setting')  # 'toy_setting' for generated images
     parser.add_argument('--coco_path', type=str, default="/home/andreaalf/Documents/detr/coco_dataset")
     parser.add_argument('--coco_panoptic_path', type=str)
     parser.add_argument('--remove_difficult', action='store_true')
@@ -157,10 +157,15 @@ def main(args):
     data_loader_val = DataLoader(dataset_val, args.batch_size, sampler=sampler_val,
                                  drop_last=False, collate_fn=utils.collate_fn, num_workers=args.num_workers)
 
-    for sample in data_loader_train:
-        print(sample)
-        break
-    exit(-1)
+    coco_sample = torch.load("tmp/coco_sample_from_dataloader.pt")
+    """
+    Each sample returned from the data loader is a tuple of size 2
+        IMAGES: sample[0] is a NestedTensor (from util.misc)
+        LABELS: sample[1] is a tuple of length BATCH_SIZE
+            Each label is a dict with keys:
+                boxes, labels, image_id, area, iscrowd, orig_size, size
+    """
+
     if args.dataset_file == "coco_panoptic":
         # We also evaluate AP during panoptic training, on original coco DS
         coco_val = datasets.coco.build("val", args)
@@ -191,6 +196,8 @@ def main(args):
         if args.output_dir:
             utils.save_on_master(coco_evaluator.coco_eval["bbox"].eval, output_dir / "eval.pth")
         return
+
+    # TRAINING ####################################################################################################
 
     print("Start training")
     start_time = time.time()

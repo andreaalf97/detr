@@ -62,6 +62,17 @@ class Gate:
             br
         ]
 
+    def get_normalized_area(self) -> float:
+        bottom_width = abs(self.bottom_right[0] - self.bottom_left[0])
+        top_width = abs(self.top_right[0] - self.top_left[0])
+        left_height = abs(self.bottom_left[1] - self.top_left[1])
+        right_height = abs(self.bottom_right[1] - self.top_right[1])
+
+        h = max(right_height, left_height)
+        w = max(bottom_width, top_width)
+
+        return (h*w)/(self.image_height * self.image_width)
+
     def rand_shift(self, image_size_perc=0.40):
 
         shift_h = random.randint(-int(self.image_width * image_size_perc), int(self.image_width * image_size_perc))
@@ -139,7 +150,7 @@ class Gate:
             )
 
 
-def get_ts_image(height, width, num_gates=3, padding=5, rand_gate_number=False, no_gate_chance=0.10, rotate_chance=0.5, shift_chance=0.5) -> (np.ndarray, list):
+def get_ts_image(height, width, num_gates=3, padding=5, rand_gate_number=False, no_gate_chance=0.10, rotate_chance=0.5, shift_chance=0.5) -> (np.ndarray, list, list):
     assert padding >= 0 and isinstance(padding, int)
 
     if rand_gate_number:
@@ -151,6 +162,7 @@ def get_ts_image(height, width, num_gates=3, padding=5, rand_gate_number=False, 
     img = get_ts_background(height, width, bgr=True, real_background_prob=0.0, black_white=True)
 
     labels = []
+    areas = []
 
     for _ in range(num_gates):
         if img[0][0][0] == 0:
@@ -162,10 +174,12 @@ def get_ts_image(height, width, num_gates=3, padding=5, rand_gate_number=False, 
             gate.rand_rotate()
         if random.random() < shift_chance:
             gate.rand_shift(image_size_perc=0.20)
+
         labels.append(gate.get_labels())
+        areas.append(gate.get_normalized_area())
         img = print_gate(img, gate, mark_top_corners=False)
 
-    return img, labels
+    return img, labels, areas
 
 
 def print_gate(img: np.ndarray, gate: Gate, mark_top_corners=False) -> np.ndarray:
@@ -299,7 +313,7 @@ class TSDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         self.generated_images += 1
-        image, labels = get_ts_image(
+        image, labels, areas = get_ts_image(
             self.img_height,
             self.img_width,
             num_gates=self.num_gates,
@@ -310,8 +324,18 @@ class TSDataset(torch.utils.data.Dataset):
             shift_chance=self.shift_chance
         )
 
+        # boxes, labels, image_id, area, iscrowd, orig_size, size
+        target = {
+            'boxes': torch.tensor(labels, dtype=torch.float64),
+            'labels': torch.tensor([0 for _ in range(len(labels))], dtype=torch.int32),
+            'image_id': torch.tensor([len(labels)], dtype=torch.int32),
+            'area': torch.tensor(areas, dtype=torch.float64),
+            'iscrowd': torch.tensor([False], dtype=torch.bool),
+            'orig_size': torch.tensor([self.img_height, self.img_width], dtype=torch.int32),
+            'size': torch.tensor([self.img_height, self.img_width], dtype=torch.int32)
+        }
+
         if self.transform:
             image = self.transform(image)
-            labels = torch.tensor(labels)
 
-        return image, labels
+        return image, target
