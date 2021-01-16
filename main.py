@@ -79,8 +79,8 @@ def get_args_parser():
                         help="Relative classification weight of the no-object class")
 
     # dataset parameters
-    parser.add_argument('--dataset_file', default='toy_setting')
-    parser.add_argument('--coco_path', type=str)
+    parser.add_argument('--dataset_file', default='coco')  # 'toy_setting' for generated images
+    parser.add_argument('--coco_path', type=str, default="/home/andreaalf/Documents/detr/coco_dataset")
     parser.add_argument('--coco_panoptic_path', type=str)
     parser.add_argument('--remove_difficult', action='store_true')
 
@@ -159,6 +159,7 @@ def main(args):
 
     for sample in data_loader_train:
         print(sample)
+        break
     exit(-1)
     if args.dataset_file == "coco_panoptic":
         # We also evaluate AP during panoptic training, on original coco DS
