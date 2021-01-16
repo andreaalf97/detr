@@ -3,6 +3,7 @@ import cv2
 import random
 import os
 import torch
+from torchvision.transforms import ToTensor
 
 
 class Gate:
@@ -281,7 +282,7 @@ def display_image(image: np.ndarray, labels):
 class TSDataset(torch.utils.data.Dataset):
 
     def __init__(self, img_height, img_width, num_gates=3, padding=5, rand_gate_number=True,
-                 no_gate_chance=0.1, rotate_chance=0.5, shift_chance=0.5, transform=None):
+                 no_gate_chance=0.1, rotate_chance=0.5, shift_chance=0.5, transform=ToTensor()):
         self.img_height = img_height
         self.img_width = img_width
         self.num_gates = num_gates
