@@ -309,7 +309,7 @@ class TSDataset(torch.utils.data.Dataset):
         self.transform = transform
 
     def __len__(self):
-        return 100000
+        return 10000
 
     def __getitem__(self, index):
         self.generated_images += 1
