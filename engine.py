@@ -57,7 +57,14 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
         """
         outputs = model(samples)
 
-        loss_dict = criterion(outputs, targets)
+        try:
+            loss_dict = criterion(outputs, targets)
+        except:
+            print("ERROR ON LINE 60, saving outputs and targets")
+            torch.save(outputs, "tmp/outputs_error.ph")
+            torch.save(targets, "tmp/target_error.ph")
+            exit(-1)
+
         weight_dict = criterion.weight_dict
         losses = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
 
