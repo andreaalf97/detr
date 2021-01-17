@@ -89,6 +89,7 @@ def get_args_parser():
     parser.add_argument('--device', default='cuda',
                         help='device to use for training / testing')
     parser.add_argument('--seed', default=43, type=int)  # default 42
+    parser.add_argument('--save_model_to', default='tmp/trained_model.pt', type=str)  # default 42
     parser.add_argument('--resume', default='', help='resume from checkpoint')
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                         help='start epoch')
@@ -252,7 +253,7 @@ def main(args):
     print('Training time {}'.format(total_time_str))
 
     print("SAVING MODEL PARAMETERS...")
-    torch.save(model.state_dict(), "tmp/trained_model.pt")
+    torch.save(model.state_dict(), args.save_model_to)
     print("SAVED MODEL")
 
 
