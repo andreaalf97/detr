@@ -80,7 +80,7 @@ def get_args_parser():
 
     # dataset parameters
     parser.add_argument('--dataset_file', default='toy_setting')  # 'toy_setting' for generated images
-    parser.add_argument('--coco_path', type=str, default="/home/andreaalf/Documents/detr/coco_dataset")
+    parser.add_argument('--coco_path', type=str, default="")  # /home/andreaalf/Documents/detr/coco_dataset
     parser.add_argument('--coco_panoptic_path', type=str)
     parser.add_argument('--remove_difficult', action='store_true')
 
