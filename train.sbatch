@@ -10,7 +10,7 @@
 #SBATCH --qos=short
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=0:03:00
+#SBATCH --time=1:00:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
@@ -41,4 +41,4 @@ module load cuda/10.2  devtoolset/6
 # Use this simple command to check that your sbatch settings are working (verify the resources allocated in the usage statistics)
 
 pwd
-srun python main.py --num_queries 10 --save_model_to /home/nfs/andreaalfieria/detr/tmp/trained_model.pt
+srun python main.py --num_queries 10 --epochs 1 --save_model_to /home/nfs/andreaalfieria/detr/tmp/trained_model.pt
