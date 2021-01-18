@@ -7,10 +7,10 @@
 #SBATCH --partition=general
 
 # The default Quality of Service is the 'short' QoS (maximum run time: 4 hours)
-#SBATCH --qos=short
+#SBATCH --qos=long
 
 # The default run (wall-clock) time is 1 minute
-#SBATCH --time=1:00:00
+#SBATCH --time=5:00:00
 
 # The default number of parallel tasks per job is 1
 #SBATCH --ntasks=1
@@ -23,7 +23,7 @@
 #SBATCH --mem=3072
 
 #SBATCH --gres=gpu:1
-#SBATCH --job-name=detr_test
+#SBATCH --job-name=detr_long_train
 
 # Set mail type to 'END' to receive a mail when the job finishes
 # Do not enable mails when submitting large numbers (>20) of jobs at once
@@ -41,4 +41,4 @@ module load cuda/10.2  devtoolset/6
 # Use this simple command to check that your sbatch settings are working (verify the resources allocated in the usage statistics)
 
 pwd
-srun python main.py --num_queries 10 --epochs 1 --save_model_to /home/nfs/andreaalfieria/detr/tmp/trained_model.pt
+srun python main.py --num_queries 10 --epochs 12 --lr_drop 10 --save_model_to /home/nfs/andreaalfieria/detr/tmp/10slots_12epochs_1to5gates_10drop.pt
