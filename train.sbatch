@@ -20,7 +20,7 @@
 #SBATCH --cpus-per-task=2
 
 # The default memory per node is 1024 megabytes (1GB) (for multiple tasks, specify --mem-per-cpu instead)
-#SBATCH --mem=4096
+#SBATCH --mem=3072
 
 #SBATCH --gres=gpu:1
 #SBATCH --job-name=detr_test
