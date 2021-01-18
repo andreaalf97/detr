@@ -48,6 +48,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
         # All values in the target dict are tensors so we move them to the selected device for computation (cuda/cpu)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
+        # plot_image_with_labels(samples.tensors[0], targets[0]["boxes"])
         """
         OUTPUTS is a DICT with keys:
             pred_logits --> Tensor of shape [batch_size, 100, 21]
@@ -56,6 +57,8 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
                 Each aux_output[i] is again a DICT with keys ['pred_logits', 'pred_boxes']
         """
         outputs = model(samples)
+
+        # plot_prediction(samples, outputs)
 
         loss_dict = criterion(outputs, targets)
 
@@ -181,3 +184,87 @@ def evaluate(model, criterion, postprocessors, data_loader, base_ds, device, out
         stats['PQ_th'] = panoptic_res["Things"]
         stats['PQ_st'] = panoptic_res["Stuff"]
     return stats, coco_evaluator
+
+
+@torch.no_grad()
+def plot_image_with_labels(img: torch.Tensor, coords: torch.Tensor):
+
+    h, w = list(img.shape)[-2:]
+
+    print("IMAGE H:{}\nIMAGE W:{}".format(h, w))
+
+    colors = [
+        "blue",
+        "red",
+        "orange",
+        "green",
+        "yellow"
+    ]
+
+    plt.imshow(img.cpu().permute(1, 2, 0))
+
+    for gate_coord, color in zip(coords, colors):
+        for i in range(len(gate_coord)):
+            if gate_coord[i] >= 1.0:
+                gate_coord[i] = torch.tensor(0.99)
+            if gate_coord[i] <= 0.0:
+                gate_coord[i] = torch.tensor(0.99)
+        bl_x, bl_y = gate_coord[0], gate_coord[1]
+        tl_x, tl_y = gate_coord[2], gate_coord[3]
+        tr_x, tr_y = gate_coord[4], gate_coord[5]
+        br_x, br_y = gate_coord[6], gate_coord[7]
+
+        plt.scatter(bl_x.cpu() * w, bl_y.cpu() * h, c=color)
+        plt.scatter(tl_x.cpu() * w, tl_y.cpu() * h, c=color)
+        plt.scatter(tr_x.cpu() * w, tr_y.cpu() * h, c=color)
+        plt.scatter(br_x.cpu() * w, br_y.cpu() * h, c=color)
+
+    plt.show()
+
+    print("COORDS SHAPE", coords.shape)
+
+
+@torch.no_grad()
+def plot_prediction(samples: utils.NestedTensor, outputs: dict):
+
+    logits_batch = outputs["pred_logits"]  # [batch_size, 100, 21]
+    coords_batch = outputs["pred_boxes"]  # [batch_size, 100, 8]
+
+    colors = [
+        "blue",
+        "red",
+        "orange",
+        "green",
+        "yellow"
+    ]
+
+    print(coords_batch[0])
+
+    for image, logits, coords in zip(samples.tensors, logits_batch, coords_batch):
+
+        h, w = list(image.shape)[-2:]
+        plt.imshow(image.cpu().permute(1, 2, 0))
+
+        for logit, coord, color in zip(logits, coords, colors):
+            _, index = torch.max(logit, 0)
+
+            if index.item() != 1:
+                for i in range(len(coord)):
+                    if coord[i] >= 1.0:
+                        coord[i] = torch.tensor(0.99)
+                    if coord[i] <= 0.0:
+                        coord[i] = torch.tensor(0.99)
+                bl_x, bl_y = coord[0], coord[1]
+                tl_x, tl_y = coord[2], coord[3]
+                tr_x, tr_y = coord[4], coord[5]
+                br_x, br_y = coord[6], coord[7]
+
+                plt.scatter(bl_x.cpu() * w, bl_y.cpu() * h, c=color)
+                plt.scatter(tl_x.cpu() * w, tl_y.cpu() * h, c=color)
+                plt.scatter(tr_x.cpu() * w, tr_y.cpu() * h, c=color)
+                plt.scatter(br_x.cpu() * w, br_y.cpu() * h, c=color)
+
+            print(coord)
+            break
+
+        plt.show()
