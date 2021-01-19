@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader, DistributedSampler
 import datasets
 import util.misc as utils
 from datasets import build_dataset, get_coco_api_from_dataset
-from engine import evaluate, train_one_epoch
+from engine import evaluate, train_one_epoch, plot_prediction
 from models import build_model
 
 
@@ -94,6 +94,7 @@ def get_args_parser():
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                         help='start epoch')
     parser.add_argument('--eval', action='store_true')
+    parser.add_argument('--pretrained_model', default='')
     parser.add_argument('--num_workers', default=2, type=int)
 
     # distributed training parameters
@@ -196,8 +197,32 @@ def main(args):
             args.start_epoch = checkpoint['epoch'] + 1
 
     if args.eval:
+        if not args.pretrained_model:
+            print("[ERROR]Give path to pretrained model")
+            return
 
+        if "checkpoint" in args.pretrained_model:
+            state_dict = torch.load(args.pretrained_model)["model"]
+        else:
+            state_dict = torch.load(args.pretrained_model)
+        model.load_state_dict(state_dict)
+        model.eval()
 
+        total_iterations = 1
+        i = 0
+        for samples, targets in data_loader_val:
+
+            if i >= total_iterations:
+                break
+
+            i += 1
+
+            samples = samples.to(device)
+            targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+
+            outputs = model(samples)
+
+            plot_prediction(samples, outputs)
 
         # test_stats, coco_evaluator = evaluate(model, criterion, postprocessors,
         #                                       data_loader_val, base_ds, device, args.output_dir)

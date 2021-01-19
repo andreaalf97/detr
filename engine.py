@@ -30,25 +30,32 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
     for samples, targets in metric_logger.log_every(data_loader, print_freq, header):
 
         # coco_sample = torch.load("tmp/coco_sample_from_dataloader.pt")
-        # samples, targets = coco_sample
+        # samples, targets = torch.load("tmp/samples.pth"), torch.load("tmp/targets.pth")
+        # show_coco_sample(samples, targets, s_num=0)
+
         """
         Each sample returned from the data loader is a tuple of size 2
             SAMPLES: is a NestedTensor (from util.misc)
+                COCO samples have values in range (-2.101, 2.163)
+                toy_setting samples have values in range (0, 1)
             TARGETS: is a tuple of length BATCH_SIZE
                 Each label is a dict with keys:
                     boxes --> [num_gates, 8]
+                        For COCO, boxes is [num_gates, 4], where each box is [center_x, center_y, width, height]
                     labels --> [num_gates]
                     image_id --> [1]
                     area --> [num_gates]
                     iscrowd --> [num_gates]
                     orig_size --> [2]
                     size --> [2]
+                        This is Height, Width
         """
         samples = samples.to(device)
         # All values in the target dict are tensors so we move them to the selected device for computation (cuda/cpu)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+        # Image values in range 0.0 : 1.0
 
-        # plot_image_with_labels(samples.tensors[0], targets[0]["boxes"])
+        # plot_image_with_labels(samples, targets, threshold=False)
         """
         OUTPUTS is a DICT with keys:
             pred_logits --> Tensor of shape [batch_size, 100, 21]
@@ -60,7 +67,20 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module,
 
         # plot_prediction(samples, outputs)
 
+        """
+        LOSS_DICT is a dict with keys (all tensors of dim 1 or single items)
+            loss_ce class_error loss_bbox loss_giou cardinality_error
+            loss_ce_0 loss_bbox_0 loss_giou_0 cardinality_error_0
+            loss_ce_1 loss_bbox_1 loss_giou_1 cardinality_error_1
+            loss_ce_2 loss_bbox_2 loss_giou_2 cardinality_error_2
+            loss_ce_3 loss_bbox_3 loss_giou_3 cardinality_error_3
+            loss_ce_4 loss_bbox_4 loss_giou_4 cardinality_error_4
+        """
         loss_dict = criterion(outputs, targets)
+
+        print("LOSS DICT KEYS: {}".format(" ".join([str(k) for k in loss_dict])))
+
+        exit(-1)
 
         weight_dict = criterion.weight_dict
         losses = sum(loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict)
@@ -187,7 +207,10 @@ def evaluate(model, criterion, postprocessors, data_loader, base_ds, device, out
 
 
 @torch.no_grad()
-def plot_image_with_labels(img: torch.Tensor, coords: torch.Tensor):
+def plot_image_with_labels(samples: torch.Tensor, targets: torch.Tensor, num_sample=0, threshold=True):
+
+    img = samples.tensors[num_sample]
+    coords = targets[num_sample]["boxes"]
 
     h, w = list(img.shape)[-2:]
 
@@ -204,11 +227,12 @@ def plot_image_with_labels(img: torch.Tensor, coords: torch.Tensor):
     plt.imshow(img.cpu().permute(1, 2, 0))
 
     for gate_coord, color in zip(coords, colors):
-        for i in range(len(gate_coord)):
-            if gate_coord[i] >= 1.0:
-                gate_coord[i] = torch.tensor(0.99)
-            if gate_coord[i] <= 0.0:
-                gate_coord[i] = torch.tensor(0.99)
+        if threshold:
+            for i in range(len(gate_coord)):
+                if gate_coord[i] >= 1.0:
+                    gate_coord[i] = torch.tensor(0.99)
+                if gate_coord[i] <= 0.0:
+                    gate_coord[i] = torch.tensor(0.99)
         bl_x, bl_y = gate_coord[0], gate_coord[1]
         tl_x, tl_y = gate_coord[2], gate_coord[3]
         tr_x, tr_y = gate_coord[4], gate_coord[5]
@@ -238,9 +262,9 @@ def plot_prediction(samples: utils.NestedTensor, outputs: dict):
         "yellow"
     ]
 
-    print(coords_batch[0])
-
     for image, logits, coords in zip(samples.tensors, logits_batch, coords_batch):
+
+        num_predictions = 0
 
         h, w = list(image.shape)[-2:]
         plt.imshow(image.cpu().permute(1, 2, 0))
@@ -249,6 +273,7 @@ def plot_prediction(samples: utils.NestedTensor, outputs: dict):
             _, index = torch.max(logit, 0)
 
             if index.item() != 1:
+                num_predictions += 1
                 for i in range(len(coord)):
                     if coord[i] >= 1.0:
                         coord[i] = torch.tensor(0.99)
@@ -264,7 +289,53 @@ def plot_prediction(samples: utils.NestedTensor, outputs: dict):
                 plt.scatter(tr_x.cpu() * w, tr_y.cpu() * h, c=color)
                 plt.scatter(br_x.cpu() * w, br_y.cpu() * h, c=color)
 
-            print(coord)
-            break
 
+        print("NUMBER OF PREDICTIONS:", num_predictions)
         plt.show()
+
+
+def show_coco_sample(samples, targets, s_num=0):
+    img = samples.tensors[s_num]
+    img = (img - torch.min(img)) / (torch.max(img) - torch.min(img))
+    boxes = targets[s_num]["boxes"]
+    img_h, img_w = targets[s_num]["size"].cpu()
+    labels = targets[s_num]["labels"]
+    plt.imshow(img.cpu().permute(1, 2, 0))
+
+    CLASSES = [
+        'N/A', 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus',
+        'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'N/A',
+        'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse',
+        'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'N/A', 'backpack',
+        'umbrella', 'N/A', 'N/A', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis',
+        'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove',
+        'skateboard', 'surfboard', 'tennis racket', 'bottle', 'N/A', 'wine glass',
+        'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich',
+        'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake',
+        'chair', 'couch', 'potted plant', 'bed', 'N/A', 'dining table', 'N/A',
+        'N/A', 'toilet', 'N/A', 'tv', 'laptop', 'mouse', 'remote', 'keyboard',
+        'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'N/A',
+        'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier',
+        'toothbrush'
+    ]
+
+    colors = [
+        "blue",
+        "red",
+        "green",
+        "yellow",
+        "orange",
+        "white"
+    ]
+
+    for box, color, label in zip(boxes, colors, labels):
+        w, h = box[2].cpu() * img_w, box[3].cpu() * img_h
+
+        plt.scatter(box[0].cpu() * img_w - (w / 2), box[1].cpu() * img_h - (h / 2), c=color, marker='+')
+        plt.scatter(box[0].cpu() * img_w - (w / 2), box[1].cpu() * img_h + (h / 2), c=color, marker='+')
+        plt.scatter(box[0].cpu() * img_w + (w / 2), box[1].cpu() * img_h + (h / 2), c=color, marker='+')
+        plt.scatter(box[0].cpu() * img_w + (w / 2), box[1].cpu() * img_h - (h / 2), c=color, marker='+')
+        plt.text(box[0].cpu() * img_w, box[1].cpu() * img_h, CLASSES[label], c=color)
+
+    plt.title(f"Original shape of {list(img.shape)}")
+    plt.show()
