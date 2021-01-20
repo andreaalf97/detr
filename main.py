@@ -68,8 +68,8 @@ def get_args_parser():
                         help="Class coefficient in the matching cost")
     parser.add_argument('--set_cost_bbox', default=5, type=float,
                         help="L1 box coefficient in the matching cost")
-    parser.add_argument('--set_cost_giou', default=2, type=float,
-                        help="giou box coefficient in the matching cost")
+    parser.add_argument('--set_cost_giou', default=0, type=float,
+                        help="giou box coefficient in the matching cost")  # default 2
     # * Loss coefficients
     parser.add_argument('--mask_loss_coef', default=1, type=float)
     parser.add_argument('--dice_loss_coef', default=1, type=float)
@@ -79,8 +79,8 @@ def get_args_parser():
                         help="Relative classification weight of the no-object class")
 
     # dataset parameters
-    parser.add_argument('--dataset_file', default='coco')  # 'toy_setting' for generated images
-    parser.add_argument('--coco_path', type=str, default="/home/andreaalf/Documents/detr/coco_dataset")  # /home/andreaalf/Documents/detr/coco_dataset
+    parser.add_argument('--dataset_file', default='toy_setting')  # 'toy_setting' for generated images
+    parser.add_argument('--coco_path', type=str, default="")  # /home/andreaalf/Documents/detr/coco_dataset
     parser.add_argument('--coco_panoptic_path', type=str)
     parser.add_argument('--remove_difficult', action='store_true')
 
