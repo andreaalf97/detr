@@ -216,7 +216,8 @@ class MetricLogger(object):
                 'eta: {eta}',
                 '{meters}',
                 'time: {time}',
-                'data: {data}'
+                'data: {data}',
+                "\n#####\n"
             ])
         MB = 1024.0 * 1024.0
         for obj in iterable:
