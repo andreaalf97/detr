@@ -35,7 +35,7 @@ class DETR(nn.Module):
         self.transformer = transformer
         hidden_dim = transformer.d_model
         self.class_embed = nn.Linear(hidden_dim, num_classes + 1)
-        self.bbox_embed = MLP(hidden_dim, hidden_dim, 8, 3)
+        self.bbox_embed = MLP(hidden_dim, hidden_dim, 4, 3)
         self.query_embed = nn.Embedding(num_queries, hidden_dim)
         self.input_proj = nn.Conv2d(backbone.num_channels, hidden_dim, kernel_size=1)
         self.backbone = backbone
@@ -220,13 +220,84 @@ class SetCriterion(nn.Module):
              outputs: dict of tensors, see the output specification of the model for the format
              targets: list of dicts, such that len(targets) == batch_size.
                       The expected keys in each dict depends on the losses applied, see each loss' doc
+        OUTPUTS is a DICT with keys:
+            pred_logits --> Tensor of shape [batch_size, 100, 21]
+            pred_boxes --> Tensor of shape [batch_size, 100, 21]
+            aux_outputs --> List of length 5 (repetitions of decoder - 1)
+                Each aux_output[i] is again a DICT with keys ['pred_logits', 'pred_boxes']
+        TARGETS: is a tuple of length BATCH_SIZE
+                Each label is a dict with keys:
+                    boxes --> [num_gates, 8]
+                        For COCO, boxes is [num_gates, 4], where each box is [center_x, center_y, width, height]
+                    labels --> [num_gates]
+                    image_id --> [1]
+                    area --> [num_gates]
+                    iscrowd --> [num_gates]
+                    orig_size --> [2]
+                    size --> [2]
+                        This is Height, Width
         """
+
         outputs_without_aux = {k: v for k, v in outputs.items() if k != 'aux_outputs'}
+        orig_o = outputs_without_aux
+        orig_t = targets
+
+        ########################################
+        # pos 0 and pos 3 have the correct gates prediction
+
+        logit0 = [2.3, -1.3]  # index 0 is the max --> gate
+        logit1 = [-0.5, 1.2]  # index 1 is the max --> no_gate
+        logit2 = logit1       # no_gate
+        logit3 = logit0       # gate
+        logit4 = logit1       # no_gate
+        pred_logits = torch.tensor([logit0, logit1, logit2, logit3, logit4])
+        pred_logits = torch.unsqueeze(pred_logits, 0).cuda()
+
+        box0 = [0.22, 0.39, 0.2, 0.25, 0.395, 0.206, 0.401, 0.4]
+        box1 = list(torch.rand(8))
+        box2 = box1
+        box3 = [0.602, 0.795, 0.599, 0.5, 0.903, 0.51, 0.9, 0.798]
+        box4 = box1
+        pred_boxes = torch.tensor([box0, box1, box2, box3, box4])
+        pred_boxes = torch.unsqueeze(pred_boxes, 0).cuda()
+
+        outputs_without_aux = {
+            "pred_logits": pred_logits,  # [1, 5, 2]
+            "pred_boxes": pred_boxes     # [1, 5, 8]
+        }
+
+        b0 = [0.2, 0.4, 0.2, 0.2, 0.4, 0.2, 0.4, 0.4]
+        b3 = [0.6, 0.8, 0.6, 0.5, 0.9, 0.5, 0.9, 0.8]
+        boxes = torch.tensor([b0, b3]).cuda()
+        labels = torch.tensor([0, 0]).cuda()
+
+        target1 = {
+            "boxes": boxes,  # [num_gates, 8]
+            "labels": labels,  # [num_gates]
+            "image_id": torch.tensor([2]).cuda(),       # [1]
+            "area": torch.tensor([2621.44, 5898.24]).cuda(),
+            "iscrowd": torch.tensor([0, 0]).cuda(),
+            "orig_size": torch.tensor([256, 256]).cuda(),
+            "size": torch.tensor([256, 256]).cuda()
+        }
+
+        targets = [target1]
+
+        # print("OUTPUTS WITH/ AUX:", [outputs_without_aux[k].shape for k in outputs_without_aux])
+        # print("############################")
+        # print("TARGETS:", "\n".join([str(k) + ":" + str(targets[0][k].shape) for k in targets[0]]))
+        # print("############################")
+        # exit(-1)
+
+        ########################################
 
         # Retrieve the matching between the outputs of the last layer and the targets
-        indices = self.matcher(outputs_without_aux, targets)
+        indices = self.matcher(orig_o, orig_t)
 
-        # Compute the average number of target boxes accross all nodes, for normalization purposes
+        print(indices)
+        exit(-1)
+
+        # Compute the average number of target boxes across all nodes, for normalization purposes
         num_boxes = sum(len(t["labels"]) for t in targets)
         num_boxes = torch.as_tensor([num_boxes], dtype=torch.float, device=next(iter(outputs.values())).device)
         if is_dist_avail_and_initialized():
@@ -235,7 +306,7 @@ class SetCriterion(nn.Module):
 
         # Compute all the requested losses
         losses = {}
-        for loss in self.losses:
+        for loss in self.losses:  # losses = ['labels', 'boxes', 'cardinality']
             losses.update(self.get_loss(loss, outputs, targets, indices, num_boxes))
 
         # In case of auxiliary losses, we repeat this process with the output of each intermediate layer.

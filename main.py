@@ -21,7 +21,7 @@ def get_args_parser():
     parser = argparse.ArgumentParser('Set transformer detector', add_help=False)
     parser.add_argument('--lr', default=1e-4, type=float)
     parser.add_argument('--lr_backbone', default=1e-5, type=float)
-    parser.add_argument('--batch_size', default=2, type=int)
+    parser.add_argument('--batch_size', default=1, type=int)
     parser.add_argument('--weight_decay', default=1e-4, type=float)
     parser.add_argument('--epochs', default=300, type=int)
     parser.add_argument('--lr_drop', default=200, type=int)
@@ -52,7 +52,7 @@ def get_args_parser():
                         help="Dropout applied in the transformer")
     parser.add_argument('--nheads', default=8, type=int,
                         help="Number of attention heads inside the transformer's attentions")
-    parser.add_argument('--num_queries', default=100, type=int,
+    parser.add_argument('--num_queries', default=5, type=int,
                         help="Number of query slots")
     parser.add_argument('--pre_norm', action='store_true')
 
@@ -74,13 +74,13 @@ def get_args_parser():
     parser.add_argument('--mask_loss_coef', default=1, type=float)
     parser.add_argument('--dice_loss_coef', default=1, type=float)
     parser.add_argument('--bbox_loss_coef', default=5, type=float)
-    parser.add_argument('--giou_loss_coef', default=2, type=float)
+    parser.add_argument('--giou_loss_coef', default=0, type=float)  # Default 2
     parser.add_argument('--eos_coef', default=0.1, type=float,
                         help="Relative classification weight of the no-object class")
 
     # dataset parameters
-    parser.add_argument('--dataset_file', default='toy_setting')  # 'toy_setting' for generated images
-    parser.add_argument('--coco_path', type=str, default="")  # /home/andreaalf/Documents/detr/coco_dataset
+    parser.add_argument('--dataset_file', default='coco')  # 'toy_setting' for generated images
+    parser.add_argument('--coco_path', type=str, default="/home/andreaalf/Documents/detr/coco_dataset")  # /home/andreaalf/Documents/detr/coco_dataset
     parser.add_argument('--coco_panoptic_path', type=str)
     parser.add_argument('--remove_difficult', action='store_true')
 
@@ -124,6 +124,11 @@ def main(args):
     np.random.seed(seed)
     random.seed(seed)
 
+    """
+    MODEL is the DETR architecture
+    CRITERION is the engine that computes the loss functions, by using a MATCHER to compute the Hungarian matching
+    POSTPROCESSOR is the engine used for evaluation
+    """
     model, criterion, postprocessors = build_model(args)
     model.to(device)
 

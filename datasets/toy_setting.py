@@ -295,7 +295,7 @@ def display_image(image: np.ndarray, labels):
 
 class TSDataset(torch.utils.data.Dataset):
 
-    def __init__(self, img_height, img_width, num_gates=5, padding=5, rand_gate_number=True,
+    def __init__(self, img_height, img_width, num_gates=3, padding=5, rand_gate_number=True,
                  no_gate_chance=0.0, rotate_chance=0.5, shift_chance=0.5, transform=ToTensor()):
         self.img_height = img_height
         self.img_width = img_width
