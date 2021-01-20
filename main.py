@@ -289,10 +289,10 @@ def main(args):
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print('Training time {}'.format(total_time_str))
 
-    print("SAVING MODEL PARAMETERS...")
     if args.save_model_to != '':
+        print("SAVING MODEL PARAMETERS...")
         torch.save(model.state_dict(), args.save_model_to)
-    print("SAVED MODEL")
+        print("SAVED MODEL")
 
 
 if __name__ == '__main__':
